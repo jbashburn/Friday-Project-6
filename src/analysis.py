@@ -3,7 +3,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from database import fetch_reviews, update_sentiment
 import json
-from visuals import generate_wordcloud, create_sentiment_barchart
+from visuals import generate_wordcloud, generate_barchart
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -44,7 +44,7 @@ def analyze_sentiment_for_all():
     # --- Step 3: Call Visualizers ---
     # This will generate and show our charts
     print("Generating visualizations...")
-    create_sentiment_barchart(all_sentiments)
+    generate_barchart()
     generate_wordcloud(all_positive_aspects, all_negative_aspects)
     print("Visualizations complete. Check the new windows.")
 
@@ -65,13 +65,15 @@ def get_detailed_analysis(text):
 
     JSON Response:
     """
+   
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
-        sentiment = response.choices[0].message.content.strip()
-        return sentiment
+        # Parse the response as JSON
+        sentiment_json = json.loads(response.choices[0].message.content.strip())
+        return sentiment_json
     except Exception as e:
         print("Error:", e)
-        return "Error"
+        return None
