@@ -19,16 +19,17 @@ try:
         raise ValueError("OPENAI_API_KEY not found in .env file.")
     client = OpenAI(api_key=OPENAI_API_KEY) 
 except Exception as e:
-    # Use print here, as queue isn't running yet
     print(f"CRITICAL ERROR: Failed to configure OpenAI API: {e}") 
 # --- END ---
 
+# Define path for the new recommendations file
+RECOMMENDATIONS_PATH = os.path.join(os.path.dirname(__file__), "..", "visuals", "recommendations.txt")
 
-def analyze_sentiment_for_all(log_queue): # <-- NEW: Accept log_queue
+
+def analyze_sentiment_for_all(log_queue):
     """
-    Loop through all reviews, analyze them with OpenAI,
-    and then call visualization functions.
-    Logs progress to the provided queue.
+    Loop through all reviews, analyze them, generate visuals,
+    and finally, generate a recommendations report.
     """
     try:
         reviews = fetch_reviews()
@@ -49,11 +50,8 @@ def analyze_sentiment_for_all(log_queue): # <-- NEW: Accept log_queue
 
     for index, (review_id, text) in enumerate(reviews):
         
-        # --- SPEED: Set to 0.5 seconds ---
-        # If you get a Rate Limit error, change this to 1 or 2
-        time.sleep(0.5) 
-        
-        analysis = get_detailed_analysis(text, log_queue) # Pass queue for error logging
+        time.sleep(0.01) 
+        analysis = get_detailed_analysis(text, log_queue) 
 
         if analysis:
             sentiment = analysis.get("sentiment", "Error")
@@ -64,10 +62,8 @@ def analyze_sentiment_for_all(log_queue): # <-- NEW: Accept log_queue
             all_positive_aspects.extend(pos_aspects)
             all_negative_aspects.extend(neg_aspects)
             
-            # --- THIS IS THE LIVE UPDATE ---
             log_msg = f"Review {review_id} ({index+1}/{len(reviews)}) {sentiment}: +{pos_aspects} / -{neg_aspects}\n"
             log_queue.put(log_msg)
-            # --- END LIVE UPDATE ---
             
         else:
             log_queue.put(f"Review {review_id}: Failed to analyze (skipped).\n")
@@ -77,14 +73,12 @@ def analyze_sentiment_for_all(log_queue): # <-- NEW: Accept log_queue
 
     # --- Step 3: Call Visualizers ---
     log_queue.put("Generating visualizations...\n")
-    
     try:
         generate_barchart(all_sentiments)
         log_queue.put("Sentiment bar chart generated.\n")
     except Exception as e:
         log_queue.put(f"Bar chart generation FAILED: {e}\n")
 
-    # --- Generate word clouds ---
     positive_text = " ".join(all_positive_aspects)
     if positive_text:
         generate_wordcloud(positive_text, "positive_aspects_wordcloud.png")
@@ -101,11 +95,32 @@ def analyze_sentiment_for_all(log_queue): # <-- NEW: Accept log_queue
 
     log_queue.put("Visualizations complete.\n")
 
+    # --- NEW: Step 4: Generate Recommendations ---
+    log_queue.put("\nGenerating final recommendations report...\n")
+    try:
+        # Get the Top 5 most common positive and negative aspects
+        pos_counts = collections.Counter(all_positive_aspects).most_common(5)
+        neg_counts = collections.Counter(all_negative_aspects).most_common(5)
 
-def get_detailed_analysis(text, log_queue): # <-- NEW: Accept log_queue
+        # Call new function to get report from OpenAI
+        report_text = get_recommendations(pos_counts, neg_counts, len(reviews), log_queue)
+        
+        if report_text:
+            # Save the report to a file
+            with open(RECOMMENDATIONS_PATH, "w", encoding="utf-8") as f:
+                f.write(report_text)
+            log_queue.put("Recommendations report saved to visuals/recommendations.txt\n")
+        else:
+            log_queue.put("Failed to generate recommendations report.\n")
+            
+    except Exception as e:
+        log_queue.put(f"Failed to generate recommendations report: {e}\n")
+    # --- END NEW STEP ---
+
+
+def get_detailed_analysis(text, log_queue):
     """
-    Ask OpenAI for a detailed analysis and return structured JSON.
-    Logs errors to the provided queue.
+    Ask OpenAI for a detailed analysis of a *single review*.
     """
     prompt = f"""
     Analyze this customer review about the Apple Vision Pro.
@@ -124,21 +139,56 @@ def get_detailed_analysis(text, log_queue): # <-- NEW: Accept log_queue
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            response_format={"type": "json_object"}, # Force JSON output
+            response_format={"type": "json_object"}, 
             messages=[{"role": "user", "content": prompt}]
         )
-        
         sentiment_json = json.loads(response.choices[0].message.content)
         return sentiment_json
-    
-    except json.JSONDecodeError as e:
-        log_queue.put(f"Review skipped. API Error: {e}\n")
-        if 'response' in locals():
-            log_queue.put(f"DEBUG: OpenAI returned (not JSON): {response.choices[0].message.content}\n")
-        else:
-            log_queue.put("DEBUG: OpenAI returned an empty response or other connection error.\n")
-        return None
     except Exception as e:
-        log_queue.put(f"Review skipped. A different API Error occurred: {e}\n")
+        log_queue.put(f"Review skipped. API Error: {e}\n")
+        return None
+
+
+# --- NEW: Function to generate final report ---
+def get_recommendations(pos_counts, neg_counts, total_reviews, log_queue):
+    """
+    Ask OpenAI to act as a product manager and write a recommendations report
+    based on the aggregated data.
+    """
+    
+    # Format the counts into a nice string
+    pos_summary = ", ".join([f"'{item}' ({count} mentions)" for item, count in pos_counts])
+    neg_summary = ", ".join([f"'{item}' ({count} mentions)" for item, count in neg_counts])
+
+    system_prompt = "You are a senior product manager at Apple, writing a summary for the Vision Pro engineering team. Your tone is professional, insightful, and concise."
+    
+    user_prompt = f"""
+    Here is a summary of the top feedback points from {total_reviews} customer reviews.
+
+    Key Strengths (Most Praised):
+    {pos_summary}
+
+    Key Weaknesses (Most Criticized):
+    {neg_summary}
+
+    Based *only* on this data, please provide:
+    1. A brief (1-2 sentence) overview of the general customer sentiment.
+    2. A bullet-point list of 3-5 actionable recommendations for improvement, clearly tied to the weaknesses.
+    3. A brief (1-2 sentence) conclusion on what to prioritize.
+
+    Format the response clearly with headings.
+    """
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini", # Use a smart model for this
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        log_queue.put(f"Recommendations API Error: {e}\n")
         return None
 
