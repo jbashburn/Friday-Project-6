@@ -4,6 +4,7 @@ import sqlite3
 import os
 from dotenv import load_dotenv
 
+
 # --- Load environment variables (for OpenAI later) ---
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
