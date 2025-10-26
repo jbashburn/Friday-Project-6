@@ -11,7 +11,7 @@ def analyze_sentiment_for_all():
     reviews = fetch_reviews()
     for review_id, text in reviews:
         sentiment = get_sentiment(text)
-        update_sentiment(review_id, sentiment)
+        #update_sentiment(review_id, sentiment) < -- temporarily disabled
         print(f"Review {review_id}: {sentiment}")
 
 def get_sentiment(text):
