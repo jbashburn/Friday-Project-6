@@ -1,10 +1,14 @@
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
-from database import fetch_reviews, update_sentiment
 import json
-from visuals import generate_wordcloud, generate_barchart
 import time
+import pandas as pd  # <-- NEW: Import pandas
+
+# --- Import our functions ---
+from database import fetch_reviews 
+# We no longer import any 'save' function
+from visuals import generate_wordcloud, generate_barchart
 
 load_dotenv()
 
@@ -26,27 +30,36 @@ except Exception as e:
 
 
 def analyze_sentiment_for_all():
-    """Loop through all reviews and analyze each one with OpenAI, and then pass the data to the visualization functions."""
+    """Loop through all reviews, analyze them, and store in-memory."""
     try:
+        # 1. Fetch data from database
         reviews = fetch_reviews()
+        if not reviews:
+            print("CRITICAL ERROR: No reviews found in database.")
+            return
+            
+        # 2. Load data into a pandas DataFrame
+        df = pd.DataFrame(reviews, columns=['id', 'review_text'])
+        print(f"Successfully loaded {len(df)} reviews into DataFrame.")
+
     except Exception as e:
         print(f"CRITICAL ERROR: Could not fetch reviews from database: {e}")
         print("Please check your database file, table name ('reviews'), and column names ('id', 'review_text').")
-        return # Stop execution if we can't get data
+        return 
 
-    all_sentiments = []
-    all_positive_aspects = []
-    all_negative_aspects = []
+    # 3. Create empty lists to store results
+    sentiments = []
+    positive_aspects_list = []
+    negative_aspects_list = []
 
     print("Starting analysis with OpenAI API (with 2-second delay)...") 
 
-    for review_id, text in reviews:
+    # 4. Loop through the DataFrame and analyze
+    for index, row in df.iterrows():
+        review_id = row['id']
+        text = row['review_text']
         
-        # --- THE FIX ---
-        # Increased delay from 1 to 2 seconds to respect the rate limit.
         time.sleep(2) 
-        # --- END FIX ---
-        
         analysis = get_detailed_analysis(text)
 
         if analysis:
@@ -54,33 +67,56 @@ def analyze_sentiment_for_all():
             pos_aspects = analysis.get("positive_aspects", [])
             neg_aspects = analysis.get("negative_aspects", [])
             
-            all_sentiments.append(sentiment)
-            all_positive_aspects.extend(pos_aspects) 
-            all_negative_aspects.extend(neg_aspects)
-
+            # Add results to our lists
+            sentiments.append(sentiment)
+            positive_aspects_list.append(pos_aspects)
+            negative_aspects_list.append(neg_aspects)
+            
             print(f"Review {review_id} {sentiment}): +{pos_aspects} / -{neg_aspects}")
         else:
             print(f"Review {review_id}: Failed to analyze (skipped).")
+            # Add "Error" placeholders to keep lists in sync
+            sentiments.append("Error")
+            positive_aspects_list.append([])
+            negative_aspects_list.append([])
 
     print("...Analysis complete!")
-    print("\n--- Summary ---")
-    print(f"Overall Sentiments: {all_sentiments}")
-    print(f"All Positive Aspects: {all_positive_aspects}")
-    print(f"All Negative Aspects: {all_negative_aspects}")
+    
+    # 5. Add the results as new columns to our DataFrame
+    df['sentiment'] = sentiments
+    df['positive_aspects'] = positive_aspects_list
+    df['negative_aspects'] = negative_aspects_list
 
-    # --- Step 3: Call Visualizers ---
+    print("\n--- Analysis DataFrame (Top 5) ---")
+    print(df.head())
+    print("---------------------------------")
+
+
+    # --- Step 6: Call Visualizers ---
     print("Generating visualizations...")
     
-    print("Bar chart generation skipped (requires database update).")
+    try:
+        # Pass the 'sentiment' column (a pandas Series)
+        generate_barchart(df['sentiment'])
+        print("Sentiment bar chart generated.")
+    except Exception as e:
+        print(f"Bar chart generation FAILED: {e}")
 
-    positive_text = " ".join(all_positive_aspects)
+    # --- Generate word clouds ---
+    # We must "flatten" the list of lists into one big list of words
+    
+    # Positive
+    all_positive_words = [item for sublist in df['positive_aspects'] for item in sublist]
+    positive_text = " ".join(all_positive_words)
     if positive_text:
         generate_wordcloud(positive_text, "positive_aspects_wordcloud.png")
         print("Positive aspects word cloud generated.")
     else:
         print("No positive aspects found, skipping word cloud.")
 
-    negative_text = " ".join(all_negative_aspects)
+    # Negative
+    all_negative_words = [item for sublist in df['negative_aspects'] for item in sublist]
+    negative_text = " ".join(all_negative_words)
     if negative_text:
         generate_wordcloud(negative_text, "negative_aspects_wordcloud.png")
         print("Negative aspects word cloud generated.")
@@ -90,7 +126,7 @@ def analyze_sentiment_for_all():
     print("Visualizations complete. Check the 'visuals' folder.")
 
 
-# --- THIS IS THE OPENAI FUNCTION ---
+# --- THIS IS THE OPENAI FUNCTION (WITH THE JSON FIX) ---
 def get_detailed_analysis(text):
     """
     Ask OpenAI for a detailed analysis and return structured JSON.
@@ -112,12 +148,18 @@ def get_detailed_analysis(text):
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
+            # --- THIS IS THE FIX ---
+            # Tell the API to *only* return valid JSON.
+            response_format={"type": "json_object"}, 
+            # --- END FIX ---
             messages=[{"role": "user", "content": prompt}]
         )
-        sentiment_json = json.loads(response.choices[0].message.content.strip())
+        
+        # Now this should always be valid JSON
+        sentiment_json = json.loads(response.choices[0].message.content)
         return sentiment_json
+    
     except json.JSONDecodeError as e:
-        # This will catch the 'char 0' error
         print(f"Review skipped. API Error: {e}")
         if 'response' in locals():
             print(f"DEBUG: OpenAI returned this (which is not JSON): {response.choices[0].message.content}")
@@ -125,6 +167,5 @@ def get_detailed_analysis(text):
             print("DEBUG: OpenAI returned an empty response or other connection error.")
         return None
     except Exception as e:
-        # This will catch other errors (like authentication)
         print(f"Review skipped. A different API Error occurred: {e}")
         return None
