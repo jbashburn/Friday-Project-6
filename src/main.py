@@ -17,7 +17,7 @@ def fetch_reviews():
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute("SELECT id, review FROM feedback")  # <-- adjust column names if needed
+        cursor.execute("SELECT id, review_text FROM reviews")  # <-- adjust column names if needed
         rows = cursor.fetchall()
         conn.close()
         return rows
