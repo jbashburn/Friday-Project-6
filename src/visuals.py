@@ -10,7 +10,8 @@ def generate_barchart():
     """Create a bar chart of sentiment counts."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT sentiment, COUNT(*) FROM feedback GROUP BY sentiment")
+    # FIXED: Changed 'feedback' to 'reviews'
+    cursor.execute("SELECT sentiment, COUNT(*) FROM reviews GROUP BY sentiment")
     data = cursor.fetchall()
     conn.close()
 
@@ -28,7 +29,8 @@ def generate_wordcloud():
     """Generate a word cloud of all feedback text."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT review FROM feedback")
+    # FIXED: Changed 'review' to 'review_text' and 'feedback' to 'reviews'
+    cursor.execute("SELECT review_text FROM reviews")
     text = " ".join([row[0] for row in cursor.fetchall()])
     conn.close()
 

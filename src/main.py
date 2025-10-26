@@ -1,29 +1,18 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import sqlite3
-import os
+# DELETED: sqlite3 and os (not needed directly in main)
 from dotenv import load_dotenv
 
+# --- NEW: Import our database function ---
+from database import fetch_reviews
 
 # --- Load environment variables (for OpenAI later) ---
 load_dotenv()
-openai_api_key = os.getenv("OPENAI_API_KEY")
+# We don't need openai_api_key in this file, so I commented it out
+# openai_api_key = os.getenv("OPENAI_API_KEY") 
 
-# --- Database setup ---
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "feedback.db")
-
-def fetch_reviews():
-    """Fetch all reviews from the database."""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, review_text FROM reviews")  # <-- adjust column names if needed
-        rows = cursor.fetchall()
-        conn.close()
-        return rows
-    except Exception as e:
-        messagebox.showerror("Database Error", f"Could not fetch data:\n{e}")
-        return []
+# --- DELETED: Database setup and fetch_reviews() function ---
+# (It's now handled by importing 'database.py')
 
 # --- GUI functions ---
 def analyze_reviews():
@@ -32,7 +21,8 @@ def analyze_reviews():
 
 def show_reviews():
     """Load and display reviews from database."""
-    reviews = fetch_reviews()
+    # This now calls the imported function
+    reviews = fetch_reviews() 
     if not reviews:
         messagebox.showinfo("No Data", "No reviews found in database.")
         return
