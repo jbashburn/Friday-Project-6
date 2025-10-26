@@ -6,7 +6,7 @@ from wordcloud import WordCloud
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "feedback.db")
 VISUALS_DIR = os.path.join(os.path.dirname(__file__), "..", "visuals")
 
-def plot_sentiment_distribution():
+def generate_barchart():
     """Create a bar chart of sentiment counts."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
