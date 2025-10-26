@@ -1,38 +1,40 @@
-import sqlite3
 import os
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
+# We no longer need sqlite3 here
+# We do not need DB_PATH here
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "feedback.db")
 VISUALS_DIR = os.path.join(os.path.dirname(__file__), "..", "visuals")
 
-def generate_barchart():
-    """Create a bar chart of sentiment counts."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    # FIXED: Changed 'feedback' to 'reviews'
-    cursor.execute("SELECT sentiment, COUNT(*) FROM reviews GROUP BY sentiment")
-    data = cursor.fetchall()
-    conn.close()
+# --- MAKE SURE THE VISUALS DIRECTORY EXISTS ---
+if not os.path.exists(VISUALS_DIR):
+    os.makedirs(VISUALS_DIR)
 
-    sentiments = [row[0] for row in data]
-    counts = [row[1] for row in data]
+def generate_barchart(sentiment_data_series):
+    """Create a bar chart of sentiment counts from a pandas Series."""
+    
+    # Use pandas to count the sentiments
+    data = sentiment_data_series.value_counts()
 
-    plt.bar(sentiments, counts)
+    sentiments = data.index
+    counts = data.values
+
+    plt.figure(figsize=(8, 6)) # Make the chart a bit bigger
+    plt.bar(sentiments, counts, color=['green', 'red', 'grey'])
     plt.title("Sentiment Distribution")
     plt.xlabel("Sentiment")
     plt.ylabel("Count")
     plt.savefig(os.path.join(VISUALS_DIR, "sentiment_chart.png"))
     plt.close()
 
-def generate_wordcloud():
-    """Generate a word cloud of all feedback text."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    # FIXED: Changed 'review' to 'review_text' and 'feedback' to 'reviews'
-    cursor.execute("SELECT review_text FROM reviews")
-    text = " ".join([row[0] for row in cursor.fetchall()])
-    conn.close()
+def generate_wordcloud(text_data, filename):
+    """Generate a word cloud from the provided text and save to a file."""
+    
+    # Check if text is empty
+    if not text_data.strip():
+        print(f"Skipping {filename}: No text data provided.")
+        return
 
-    wordcloud = WordCloud(width=800, height=400, background_color="white").generate(text)
-    wordcloud.to_file(os.path.join(VISUALS_DIR, "aspect_wordcloud.png"))
+    wordcloud = WordCloud(width=800, height=400, background_color="white").generate(text_data)
+    save_path = os.path.join(VISUALS_DIR, filename)
+    wordcloud.to_file(save_path)
