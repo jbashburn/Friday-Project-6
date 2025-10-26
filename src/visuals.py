@@ -1,0 +1,36 @@
+import sqlite3
+import os
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "feedback.db")
+VISUALS_DIR = os.path.join(os.path.dirname(__file__), "..", "visuals")
+
+def plot_sentiment_distribution():
+    """Create a bar chart of sentiment counts."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT sentiment, COUNT(*) FROM feedback GROUP BY sentiment")
+    data = cursor.fetchall()
+    conn.close()
+
+    sentiments = [row[0] for row in data]
+    counts = [row[1] for row in data]
+
+    plt.bar(sentiments, counts)
+    plt.title("Sentiment Distribution")
+    plt.xlabel("Sentiment")
+    plt.ylabel("Count")
+    plt.savefig(os.path.join(VISUALS_DIR, "sentiment_chart.png"))
+    plt.close()
+
+def generate_wordcloud():
+    """Generate a word cloud of all feedback text."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT review FROM feedback")
+    text = " ".join([row[0] for row in cursor.fetchall()])
+    conn.close()
+
+    wordcloud = WordCloud(width=800, height=400, background_color="white").generate(text)
+    wordcloud.to_file(os.path.join(VISUALS_DIR, "aspect_wordcloud.png"))
