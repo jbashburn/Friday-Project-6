@@ -4,10 +4,26 @@ from dotenv import load_dotenv
 from database import fetch_reviews, update_sentiment
 import json
 from visuals import generate_wordcloud, generate_barchart
-import time  # <-- NEW: Import the time module
+import time
 
 load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# --- Configure the OpenAI API key ---
+try:
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    if OPENAI_API_KEY:
+        print(f"DEBUG: Found API Key starting with: {OPENAI_API_KEY[:8]}...")
+    else:
+        print("DEBUG: ERROR! OPENAI_API_KEY not found in .env file.")
+    
+    if not OPENAI_API_KEY:
+        raise ValueError("OPENAI_API_KEY not found in .env file.")
+    client = OpenAI(api_key=OPENAI_API_KEY) 
+except Exception as e:
+    print(f"CRITICAL ERROR: Failed to configure OpenAI API: {e}")
+    print("Please make sure your .env file has a valid OPENAI_API_KEY.")
+# --- END ---
+
 
 def analyze_sentiment_for_all():
     """Loop through all reviews and analyze each one with OpenAI, and then pass the data to the visualization functions."""
@@ -18,19 +34,17 @@ def analyze_sentiment_for_all():
         print("Please check your database file, table name ('reviews'), and column names ('id', 'review_text').")
         return # Stop execution if we can't get data
 
-    # Lists to hold all our data
     all_sentiments = []
     all_positive_aspects = []
     all_negative_aspects = []
 
-    print("Starting analysis...")
+    print("Starting analysis with OpenAI API (with 2-second delay)...") 
 
     for review_id, text in reviews:
         
-        # --- THIS IS THE FIX ---
-        # Add a 1-second delay before *each* API call
-        # This stops the API from rate-limiting us.
-        time.sleep(1) 
+        # --- THE FIX ---
+        # Increased delay from 1 to 2 seconds to respect the rate limit.
+        time.sleep(2) 
         # --- END FIX ---
         
         analysis = get_detailed_analysis(text)
@@ -40,15 +54,12 @@ def analyze_sentiment_for_all():
             pos_aspects = analysis.get("positive_aspects", [])
             neg_aspects = analysis.get("negative_aspects", [])
             
-            # Add data to our lists
             all_sentiments.append(sentiment)
             all_positive_aspects.extend(pos_aspects) 
             all_negative_aspects.extend(neg_aspects)
 
-            #update_sentiment(review_id, sentiment) < -- temporarily disabled
             print(f"Review {review_id} {sentiment}): +{pos_aspects} / -{neg_aspects}")
         else:
-            # This will now print for any review that failed
             print(f"Review {review_id}: Failed to analyze (skipped).")
 
     print("...Analysis complete!")
@@ -60,12 +71,8 @@ def analyze_sentiment_for_all():
     # --- Step 3: Call Visualizers ---
     print("Generating visualizations...")
     
-    # generate_barchart() # <-- This needs sentiment to be in the database first. Let's disable it for now.
     print("Bar chart generation skipped (requires database update).")
 
-    # --- Generate two separate word clouds ---
-    
-    # Join all positive aspects into one giant string
     positive_text = " ".join(all_positive_aspects)
     if positive_text:
         generate_wordcloud(positive_text, "positive_aspects_wordcloud.png")
@@ -73,7 +80,6 @@ def analyze_sentiment_for_all():
     else:
         print("No positive aspects found, skipping word cloud.")
 
-    # Join all negative aspects into one giant string
     negative_text = " ".join(all_negative_aspects)
     if negative_text:
         generate_wordcloud(negative_text, "negative_aspects_wordcloud.png")
@@ -83,6 +89,8 @@ def analyze_sentiment_for_all():
 
     print("Visualizations complete. Check the 'visuals' folder.")
 
+
+# --- THIS IS THE OPENAI FUNCTION ---
 def get_detailed_analysis(text):
     """
     Ask OpenAI for a detailed analysis and return structured JSON.
@@ -106,10 +114,17 @@ def get_detailed_analysis(text):
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
-        # Parse the response as JSON
         sentiment_json = json.loads(response.choices[0].message.content.strip())
         return sentiment_json
+    except json.JSONDecodeError as e:
+        # This will catch the 'char 0' error
+        print(f"Review skipped. API Error: {e}")
+        if 'response' in locals():
+            print(f"DEBUG: OpenAI returned this (which is not JSON): {response.choices[0].message.content}")
+        else:
+            print("DEBUG: OpenAI returned an empty response or other connection error.")
+        return None
     except Exception as e:
-        # UPDATED: More helpful error message
-        print(f"Review skipped. API Error (likely rate limit or empty response): {e}")
+        # This will catch other errors (like authentication)
+        print(f"Review skipped. A different API Error occurred: {e}")
         return None
