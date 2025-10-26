@@ -8,7 +8,7 @@ def fetch_reviews():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     # Adjust column/table names to match your database
-    cursor.execute("SELECT id, review FROM feedback")
+    cursor.execute("SELECT id, review_text FROM reviews")
     rows = cursor.fetchall()
     conn.close()
     return rows
@@ -18,6 +18,6 @@ def update_sentiment(review_id, sentiment):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     # Add a sentiment column to your table if it doesn’t exist yet
-    cursor.execute("UPDATE feedback SET sentiment=? WHERE id=?", (sentiment, review_id))
+    cursor.execute("UPDATE reviews SET sentiment=? WHERE id=?", (sentiment, review_id))
     conn.commit()
     conn.close()
