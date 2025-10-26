@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 from dotenv import load_dotenv
 import threading  # <-- NEW: Import threading
 
+
 # --- Import our functions ---
 from database import fetch_reviews
 from analysis import analyze_sentiment_for_all  # <-- NEW: Import analysis function

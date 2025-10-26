@@ -1,8 +1,8 @@
 import os
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
-# We no longer need sqlite3 here
-# We do not need DB_PATH here
+import collections  # <-- NEW: Import built-in 'collections'
+# We no longer need sqlite3 or DB_PATH
 
 VISUALS_DIR = os.path.join(os.path.dirname(__file__), "..", "visuals")
 
@@ -10,20 +10,28 @@ VISUALS_DIR = os.path.join(os.path.dirname(__file__), "..", "visuals")
 if not os.path.exists(VISUALS_DIR):
     os.makedirs(VISUALS_DIR)
 
-def generate_barchart(sentiment_data_series):
-    """Create a bar chart of sentiment counts from a pandas Series."""
+def generate_barchart(sentiment_list):
+    """Create a bar chart of sentiment counts from a list."""
     
-    # Use pandas to count the sentiments
-    data = sentiment_data_series.value_counts()
+    if not sentiment_list:
+        print("Skipping bar chart: No sentiment data provided.")
+        return
+        
+    # 1. Use Counter to count items in the list (e.g., {'Positive': 40, 'Negative': 35, ...})
+    data = collections.Counter(sentiment_list)
 
-    sentiments = data.index
-    counts = data.values
+    # 2. Get the labels (sentiments) and values (counts)
+    sentiments = list(data.keys())
+    counts = list(data.values())
 
-    plt.figure(figsize=(8, 6)) # Make the chart a bit bigger
-    plt.bar(sentiments, counts, color=['green', 'red', 'grey'])
+    # 3. Create the plot
+    plt.figure(figsize=(8, 6))
+    plt.bar(sentiments, counts, color=['green', 'red', 'grey']) # Added some color
     plt.title("Sentiment Distribution")
     plt.xlabel("Sentiment")
     plt.ylabel("Count")
+    
+    # 4. Save the plot
     plt.savefig(os.path.join(VISUALS_DIR, "sentiment_chart.png"))
     plt.close()
 
@@ -35,6 +43,9 @@ def generate_wordcloud(text_data, filename):
         print(f"Skipping {filename}: No text data provided.")
         return
 
+    # Generate word cloud
     wordcloud = WordCloud(width=800, height=400, background_color="white").generate(text_data)
     save_path = os.path.join(VISUALS_DIR, filename)
+    
+    # Save the file
     wordcloud.to_file(save_path)
