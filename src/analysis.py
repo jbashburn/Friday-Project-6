@@ -3,7 +3,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from database import fetch_reviews, update_sentiment
 import json
-from visuals import create_word_clouds, create_sentiment_barchart
+from visuals import generate_wordcloud, create_sentiment_barchart
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -32,8 +32,8 @@ def analyze_sentiment_for_all():
             all_positive_aspects.extend(pos_aspects) # .extend adds all items from a list
             all_negative_aspects.extend(neg_aspects)
 
-        #update_sentiment(review_id, sentiment) < -- temporarily disabled
-        print(f"Review {review_id}: {sentiment}"): +{pos_aspects} / -{neg_aspects}")
+            #update_sentiment(review_id, sentiment) < -- temporarily disabled
+            print(f"Review {review_id} {sentiment}): +{pos_aspects} / -{neg_aspects}")
 
     print("...Analysis complete!")
     print("\n--- Summary ---")
@@ -45,7 +45,7 @@ def analyze_sentiment_for_all():
     # This will generate and show our charts
     print("Generating visualizations...")
     create_sentiment_barchart(all_sentiments)
-    create_word_clouds(all_positive_aspects, all_negative_aspects)
+    generate_wordcloud(all_positive_aspects, all_negative_aspects)
     print("Visualizations complete. Check the new windows.")
 
 def get_detailed_analysis(text):
