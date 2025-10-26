@@ -1,12 +1,10 @@
-# Friday-Project-6
-Files for Advanced Sentiment Analysis of Feedback
-Apple Vision Pro - Sentiment Analysis ProjectThis project analyzes customer reviews for the Apple Vision Pro, using the OpenAI API to determine sentiment and extract key product aspects. It presents the findings in a Python/Tkinter GUI.Project StructureFRIDAY-PROJECT-6/
+Apple Vision Pro - Sentiment Analysis ProjectThis project analyzes customer reviews for the Apple Vision Pro, using the OpenAI API to determine sentiment and extract key product aspects. It presents the findings in a Python/Tkinter GUI.FeaturesTkinter GUI: A clean user interface to load data and run analysis.Live Log: A log box on the main window shows real-time progress of the analysis.Non-Blocking: Uses threading to run the analysis, so the app never freezes.Chart Window: A "Show Results" button opens a new window with all generated charts and word clouds.In-Memory Analysis: Does not modify the original feedback.db file.No Pandas: Uses Python's built-in collections module for data counting.Project StructureFRIDAY-PROJECT-6/
 ├── data/
 │   └── feedback.db         (Your professor's database)
 ├── src/
-│   ├── analysis.py       (Handles OpenAI API calls)
+│   ├── analysis.py       (Handles OpenAI API calls and sends logs to queue)
 │   ├── database.py       (Reads from the database)
-│   ├── main.py           (The main Tkinter GUI application)
+│   ├── main.py           (The main Tkinter GUI with the live log)
 │   └── visuals.py        (Generates charts and word clouds)
 ├── visuals/                (This folder will be auto-generated)
 │   ├── sentiment_chart.png
@@ -21,4 +19,4 @@ Run the Application:Run the main.py file from your terminal (make sure you are i
 cd src
 # Run the main file
 python main.py
-Alternatively, just run src/main.py from your VS Code "Run" button.Use the App:Click "Load Reviews" to see the data from feedback.db.Click "Analyze Sentiment". This will run in the background (check your console for progress).Once the analysis is complete, click "Show Results" to see the charts in a new window.
+Alternatively, just run src/main.py from your VS Code "Run" button.Use the App:Click "Load Reviews" to see the data.Click "Analyze Sentiment". Watch the Live Analysis Log box in the app to see the progress.When the log shows "--- ANALYSIS COMPLETE ---", click "Show Results" to see the charts.

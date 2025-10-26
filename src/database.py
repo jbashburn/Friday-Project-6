@@ -19,3 +19,4 @@ def fetch_reviews():
         print(f"Attempted to connect to: {DB_PATH}")
         print("Please ensure 'data/feedback.db' exists and the table is named 'reviews'.")
         return None # Return None to signal an error
+
