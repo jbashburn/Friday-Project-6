@@ -4,7 +4,7 @@ This project is an app built for the Apple Vision Pro product team to analyze a 
 
 The app uses the OpenAI API (gpt-4o-mini) to perform advanced sentiment analysis, with a Live Progress Log, visual presentation, and an ai-generated recommendation report.
 
-    User will create a .env foldler to enter the API key. You can use your own API key.
+    User will create a .env foldler to enter the API key. You can use your own API key. To use the app run the main.py file in src folder.
 
 Files include:
     FRIDAY-PROJECT-6
