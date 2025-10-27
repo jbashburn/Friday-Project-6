@@ -192,3 +192,4 @@ def get_recommendations(pos_counts, neg_counts, total_reviews, log_queue):
         log_queue.put(f"Recommendations API Error: {e}\n")
         return None
 
+#final analysis file

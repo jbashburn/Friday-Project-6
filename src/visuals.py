@@ -55,3 +55,4 @@ def generate_wordcloud(text_data, filename):
     # Save the file
     wordcloud.to_file(save_path)
 
+#final visuals file

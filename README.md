@@ -89,4 +89,4 @@ File Descriptions
 
     feedback.db: The SQLite database file containing the customer reviews.
 
-    visuals: This folder is created automatically by the app to store the saved charts and the recommendations.txt file.
+    visuals: This folder is created automatically by the app to store the saved charts and the recommendations.txt file..

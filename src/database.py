@@ -20,3 +20,4 @@ def fetch_reviews():
         print("Please ensure 'data/feedback.db' exists and the table is named 'reviews'.")
         return None # Return None to signal an error
 
+#final database py file

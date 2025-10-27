@@ -291,3 +291,4 @@ log_box.pack(fill="both", expand=True)
 root.after(100, process_log_queue) # Start the queue checker
 root.mainloop()
 
+#final main file
